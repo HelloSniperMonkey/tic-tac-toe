@@ -1,0 +1,30 @@
+{
+  "name": "tic-tac-toe",
+  "version": "1.0.0",
+  "description": "game",
+  "main": "server.js",
+  "scripts": {
+    "test": "node test",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HelloSniperMonkey/2-player-tic-tac-toe.git"
+  },
+  "keywords": [
+    "tic-tac-toe"
+  ],
+  "author": "soumyajyoti",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/HelloSniperMonkey/2-player-tic-tac-toe/issues"
+  },
+  "homepage": "https://github.com/HelloSniperMonkey/2-player-tic-tac-toe#readme",
+  "dependencies": {
+    "express": "^4.21.0",
+    "http": "^0.0.1-security",
+    "path": "^0.12.7",
+    "socket.io": "^4.8.0",
+    "uuid": "^10.0.0"
+  }
+}

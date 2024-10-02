@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <!-- <link rel="stylesheet" href="css/style.css"> -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #A9F0D1;
+            text-align: center;
+        }
+
+        .container {
+            height: 70vh;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+
+        }
+
+        #board {
+            height: 60vmin;
+            width: 60vmin;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5vmin;
+        }
+
+        .box {
+            height: 18vmin;
+            width: 18vmin;
+            border-radius: 1rem;
+            border: none;
+            box-shadow: 0 0 1rem rgba(0, 0, 0, 0.3);
+            font-size: 8vmin;
+            color: #fff7f8;
+            background-color: #ff7e6b;
+        }
+
+        #reset {
+            padding: 1rem;
+            font-size: 1.25rem;
+            background-color: #191913;
+            color: #ffffff;
+            border-radius: 1rem;
+            border: none;
+        }
+
+        .msg_container {
+            height: 5vh;
+        }
+
+        #new {
+            padding: 1rem;
+            font-size: 1.25rem;
+            background-color: #191913;
+            color: #ffffff;
+            border-radius: 1rem;
+            border: none;
+        }
+
+        .message {
+            color: crimson;
+            font-size: 3rem;
+            padding-bottom: 10px;
+        }
+
+        .hide {
+            display: none;
+        }
+
+        #status {
+            height: 4vh;
+            display: flex;
+            justify-content: center;
+            align-items: top;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div class="msg_container"></div>
+    <a href="http://localhost:3000/create" target="_blank"><button id="new">New Game</button></a>
+    </div>
+    <main>
+        <h1>Tic Tac Toe</h1>
+        <div id="status"></div>
+        <p class="message hide"> is Winner</p>
+        <div class="container">
+            <div id="board">
+                <button class="box" data-index="0"></button>
+                <button class="box" data-index="1"></button>
+                <button class="box" data-index="2"></button>
+                <button class="box" data-index="3"></button>
+                <button class="box" data-index="4"></button>
+                <button class="box" data-index="5"></button>
+                <button class="box" data-index="6"></button>
+                <button class="box" data-index="7"></button>
+                <button class="box" data-index="8"></button>
+            </div>
+        </div>
+    </main>
+    <button id="reset">Reset Game</button>
+
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const gameId = window.location.pathname.split("/")[2];
+        const boxes = document.querySelectorAll(".box");
+        let playerNumber;
+        let symbol;
+        let turn = 0;
+
+        const statusDiv = document.getElementById('status');
+
+        // Join the game
+        socket.emit('joinGame', { gameId });
+
+        socket.on('playerJoined', ({ playerNumber: num }) => {
+            playerNumber = num;
+            symbol = playerNumber === 1 ? 'X' : 'O';
+            statusDiv.innerText = `You are Player ${playerNumber} (${symbol})`;
+        });
+
+        socket.on('waitingForPlayer', () => {
+            statusDiv.innerText = 'Waiting for another player...';
+        });
+
+        socket.on('startGame', () => {
+            statusDiv.innerText = 'Game started!';
+        });
+
+        socket.on('gameFull', () => {
+            statusDiv.innerText = 'Game is full. Cannot join.';
+        });
+
+        socket.on('moveMade', ({ index, symbol }) => {
+            boxes[index].innerText = symbol;
+            turn++;
+            if(winlose(boxes, 3)){
+                let xo = winlose(boxes, 3)
+                socket.emit('winningPlayer',({xo}))
+            }
+        });
+
+        socket.on('winner',({xo})=>{
+            msg = document.querySelector(".hide");
+            msg.innerText = xo+msg.innerText;
+            msg.classList.remove("hide");
+        });
+
+
+        socket.on('emptyscreen',()=>{
+            boxes.forEach((box)=>{
+                box.innerText="";
+            });
+            msg = document.querySelector(".message");
+            msg.classList.add("hide");
+        });
+
+        boxes.forEach((box) => {
+            box.addEventListener('click', () => {
+                const index = box.getAttribute('data-index');
+                if (!box.innerText ) {
+                    if(symbol==='X' && turn%2===0){
+                        box.innerText = symbol; // Local move
+                        console.log(turn);
+                        socket.emit('makeMove', { gameId, index, symbol });
+                    }
+                    else if(symbol ==='O' && turn%2===1){
+                        box.innerText = symbol; // Local move
+                        console.log(turn);
+                        socket.emit('makeMove', { gameId, index, symbol });
+                    }
+                }
+            });
+        });
+
+        socket.on('playerLeft', () => {
+            statusDiv.innerText = 'The other player left the game.';
+            symbol='X';
+        });
+
+        function winlose(boxes, n) {
+            let player=""
+            for (let row = 0; row < n; row++) {
+                let firstBox = boxes[row * n].innerText;
+                if (firstBox !== "" && checkLine(row * n, 1, n, firstBox)) {
+                    console.log(firstBox + " wins on row " + row);
+                    player=firstBox;
+                    return player;
+                }
+            }
+            for (let col = 0; col < n; col++) {
+                let firstBox = boxes[col].innerText;
+                if (firstBox !== "" && checkLine(col, n, n, firstBox)) {
+                    console.log(firstBox + " wins on column " + col);
+                    player=firstBox;
+                    return player;
+                }
+            }
+            let firstBox = boxes[0].innerText;
+            if (firstBox !== "" && checkLine(0, n + 1, n, firstBox)) {
+                console.log(firstBox + " wins on the main diagonal");
+                player=firstBox;
+                return player;
+            }
+            firstBox = boxes[n - 1].innerText;
+            if (firstBox !== "" && checkLine(n - 1, n - 1, n, firstBox)) {
+                console.log(firstBox + " wins on the anti-diagonal");
+                player=firstBox;
+                return player;
+            }
+        }
+
+        function checkLine(startIndex, step, n, symbol) {
+            for (let i = 0; i < n; i++) {
+                if (boxes[startIndex + i * step].innerText !== symbol) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        document.getElementById("reset").addEventListener("click",()=>{
+            location.reload();
+        });
+    </script>
+</body>
+
+</html>
