@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tic Tac Toe</title>
-    <!-- <link rel="stylesheet" href="css/style.css"> -->
     <style>
         * {
             margin: 0;
@@ -57,7 +56,7 @@
         }
 
         .msg_container {
-            height: 5vh;
+            height: 2vh;
         }
 
         #new {
@@ -85,17 +84,33 @@
             justify-content: center;
             align-items: top;
         }
-    </style>
 
+        #link {
+            display: inline-block;
+            padding: 0%;
+        }
+
+        #share {
+            padding: 1rem;
+            font-size: 1.25rem;
+            background-color: #191913;
+            color: #ffffff;
+            border-radius: 1rem;
+            border: none;
+        }
+    </style>
 </head>
 
 <body>
     <div class="msg_container"></div>
-    <a href="http://localhost:3000/create" target="_blank"><button id="new">New Game</button></a>
-    </div>
+    <a id="link" href="https://tic-tac-toe-a6yt.onrender.com/create" target="_blank">
+        <button id="new">New Game</button>
+    </a>
+    <button id="share">Share Game Session</button> <!-- New share button -->
     <main>
         <h1>Tic Tac Toe</h1>
         <div id="status"></div>
+        <p id="player">you are : </p>
         <p class="message hide"> is Winner</p>
         <div class="container">
             <div id="board">
@@ -113,7 +128,6 @@
     </main>
     <button id="reset">Reset Game</button>
 
-
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
@@ -122,8 +136,17 @@
         let playerNumber;
         let symbol;
         let turn = 0;
-
+        let canClick = true;  // To disable/enable clicks
         const statusDiv = document.getElementById('status');
+        const playerDiv = document.getElementById('player');
+
+        // Share Game Session Button
+        document.getElementById('share').addEventListener('click', () => {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Game session URL copied to clipboard!');
+            });
+        });
 
         // Join the game
         socket.emit('joinGame', { gameId });
@@ -132,6 +155,7 @@
             playerNumber = num;
             symbol = playerNumber === 1 ? 'X' : 'O';
             statusDiv.innerText = `You are Player ${playerNumber} (${symbol})`;
+            playerDiv.innerText = `You are Player ${playerNumber} (${symbol})`;
         });
 
         socket.on('waitingForPlayer', () => {
@@ -149,78 +173,97 @@
         socket.on('moveMade', ({ index, symbol }) => {
             boxes[index].innerText = symbol;
             turn++;
-            if(winlose(boxes, 3)){
-                let xo = winlose(boxes, 3)
-                socket.emit('winningPlayer',({xo}))
+            canClick = true;  // Enable clicks again
+            if (winlose(boxes, 3)) {
+                let xo = winlose(boxes, 3);
+                socket.emit('winningPlayer', { gameId, xo });
+            }
+            else if(turn===9){
+                xo = "Draw"
+                socket.emit('winningPlayer', { gameId, xo });
             }
         });
 
-        socket.on('winner',({xo})=>{
-            msg = document.querySelector(".hide");
-            msg.innerText = xo+msg.innerText;
+        socket.on('winner', ({ xo }) => {
+            let msg = document.querySelector(".hide");
+            if(xo !== "Draw")
+                msg.innerText = xo + msg.innerText;
+            else
+            msg.innerText = xo ;
             msg.classList.remove("hide");
         });
 
-
-        socket.on('emptyscreen',()=>{
-            boxes.forEach((box)=>{
-                box.innerText="";
+        socket.on('emptyscreen', () => {
+            boxes.forEach((box) => {
+                box.innerText = "";
             });
-            msg = document.querySelector(".message");
-            msg.classList.add("hide");
+            document.querySelector(".message").classList.add("hide");
         });
 
         boxes.forEach((box) => {
             box.addEventListener('click', () => {
                 const index = box.getAttribute('data-index');
-                if (!box.innerText ) {
-                    if(symbol==='X' && turn%2===0){
-                        box.innerText = symbol; // Local move
-                        console.log(turn);
+                if (!box.innerText && canClick) {
+                    if (symbol === 'X' && turn % 2 === 0) {
+                        box.innerText = symbol;  // Local move
+                        canClick = false;  // Disable clicks until server response
                         socket.emit('makeMove', { gameId, index, symbol });
-                    }
-                    else if(symbol ==='O' && turn%2===1){
-                        box.innerText = symbol; // Local move
-                        console.log(turn);
+                    } else if (symbol === 'O' && turn % 2 === 1) {
+                        box.innerText = symbol;  // Local move
+                        canClick = false;  // Disable clicks until server response
                         socket.emit('makeMove', { gameId, index, symbol });
                     }
                 }
             });
         });
 
+        document.getElementById("reset").addEventListener("click", () => {
+            socket.emit('resetGame', { gameId });
+            // location.reload();
+            // console.log("clicked on turn:" + turn + " can click:" + canClick);
+        });
+
+        // When the game is reset
+        socket.on('gameReset', ({ currentTurn }) => {
+            location.reload();
+        });
+
+        // Update the statusDiv for each player's turn
+        socket.on('turnDecided', ({ currentTurn }) => {
+            statusDiv.innerText = statusDiv.innerText + `It's Player ${currentTurn}'s turn!`;
+            symbol = currentTurn === playerNumber ? (playerNumber === 1 ? 'X' : 'O') : (playerNumber === 1 ? 'O' : 'X');
+            turn = currentTurn === 1 ? 0 : 1;  // Reset turn based on currentTurn
+        });
+
         socket.on('playerLeft', () => {
             statusDiv.innerText = 'The other player left the game.';
-            symbol='X';
+            symbol = 'X';
         });
 
         function winlose(boxes, n) {
-            let player=""
+            let player = "";
             for (let row = 0; row < n; row++) {
                 let firstBox = boxes[row * n].innerText;
                 if (firstBox !== "" && checkLine(row * n, 1, n, firstBox)) {
-                    console.log(firstBox + " wins on row " + row);
-                    player=firstBox;
+                    player = firstBox;
                     return player;
                 }
             }
             for (let col = 0; col < n; col++) {
                 let firstBox = boxes[col].innerText;
                 if (firstBox !== "" && checkLine(col, n, n, firstBox)) {
-                    console.log(firstBox + " wins on column " + col);
-                    player=firstBox;
+                    player = firstBox;
                     return player;
                 }
             }
             let firstBox = boxes[0].innerText;
             if (firstBox !== "" && checkLine(0, n + 1, n, firstBox)) {
-                console.log(firstBox + " wins on the main diagonal");
-                player=firstBox;
+                player = firstBox;
                 return player;
             }
             firstBox = boxes[n - 1].innerText;
             if (firstBox !== "" && checkLine(n - 1, n - 1, n, firstBox)) {
-                console.log(firstBox + " wins on the anti-diagonal");
-                player=firstBox;
+                player = firstBox;
                 return player;
             }
         }
@@ -233,10 +276,6 @@
             }
             return true;
         }
-
-        document.getElementById("reset").addEventListener("click",()=>{
-            location.reload();
-        });
     </script>
 </body>
 

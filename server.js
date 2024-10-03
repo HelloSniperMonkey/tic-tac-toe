@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { v4: uuidv4 } = require('uuid'); // For generating unique game session IDs
 const path = require('path');
+const { randomInt } = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -13,7 +14,7 @@ const port = 3000;
 let games = {}; // Store the game sessions and players
 
 // Serve static files (HTML, CSS, JS for the frontend)
-app.use(express.static(path.join(__dirname,'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Route to create a new game session
 app.get('/create', (req, res) => {
@@ -79,10 +80,25 @@ io.on('connection', (socket) => {
             io.to(gameId).emit('moveMade', { index, symbol });
         }
     });
+
     //winner has been decided
-    socket.on('winningPlayer',({xo})=>{
-        socket.emit('winner',({xo}));
+    socket.on('winningPlayer', ({ gameId, xo }) => {
+        io.to(gameId).emit('winner', ({ xo }));
     });
+
+    socket.on('resetGame', ({ gameId }) => {
+        // const game = games[gameId];
+        // if (game) {
+        //     // Randomly choose who starts first (Player 1 or Player 2)
+        //     const currentTurn = Math.round(Math.random()) + 1; // 1 or 2
+        //     game.board = Array(9).fill(null); // Reset the board
+
+            // Notify all players that the game has been reset
+            io.to(gameId).emit('gameReset', { currentTurn });
+            io.to(gameId).emit('turnDecided', { currentTurn });
+        // }
+    });
+
     // Handle disconnects
     socket.on('disconnect', () => {
         console.log('A user disconnected');
