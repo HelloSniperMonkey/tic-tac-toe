@@ -90,7 +90,7 @@ io.on('connection', (socket) => {
         // const game = games[gameId];
         // if (game) {
         //     // Randomly choose who starts first (Player 1 or Player 2)
-        //     const currentTurn = Math.round(Math.random()) + 1; // 1 or 2
+            const currentTurn = Math.round(Math.random()) + 1; // 1 or 2
         //     game.board = Array(9).fill(null); // Reset the board
 
             // Notify all players that the game has been reset
